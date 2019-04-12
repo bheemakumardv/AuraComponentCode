@@ -1,0 +1,195 @@
+Apex Class:
+----------
+
+public class ContactCreator {
+    static Contact cont;
+    @AuraEnabled public static String insertrecords(String Name1, String Email) {
+        try {
+            cont = new Contact();
+            //cont.LastName = 'harbajan';
+            cont.LastName = Name1;
+            cont.Email = Email;
+            insert cont;
+            system.debug('Inside Apex class insert method:' + cont.id);
+
+        } catch (exception e) {
+            system.debug(e.getMessage());
+            return e.getMessage();
+        }
+        return cont.id;
+    }
+    @AuraEnabled public static void updaterecords(string recid, string passedata, string passdataemail, string passname) {
+        //to check whether passedata(description) passed from contact form is coming into the Apex class update method
+        System.debug('Inside Apex class update method this is the description: ' + passedata);
+        try {
+            contact conttoupdate;
+            conttoupdate = [select id, Description, Email, LastName from contact where id =: recid];
+            conttoupdate.Description = passedata;
+            conttoupdate.Email = passdataemail;
+            conttoupdate.LastName = passname;
+            update conttoupdate;
+
+        } catch (exception e) {
+            system.debug(e.getmessage());
+        }
+    }
+
+    @AuraEnabled public static Contact fetchcontact(Id Idd) {
+        //Contact cont;
+        //String accstring = '';
+        cont = [Select id, LastName, Email, Description from Contact where id =: idd];
+        system.debug('Inside Apex class fetchcontact method:' + cont);
+        return cont;
+    }
+
+    @AuraEnabled public static void deleterecord(string recid) {
+        try {
+            contact condel;
+            condel = [select id, LastName, Email, Description from contact where id =: recid];
+            delete condel;
+        } catch (exception e) {
+            system.debug(e.getmessage());
+        }
+    }
+}
+
+Java Script:
+-----------
+
+({
+    doInit: function(component, event, helper) {
+
+        if (component.get("v.recordId") == undefined || component.get("v.recordId") == null) {} else {
+            debugger;
+            var action = component.get("c.fetchcontact");
+            action.setParams({
+                Idd: component.get("v.recordId")
+            });
+
+            action.setCallback(this, function(a) {
+                component.set("v.conObj", a.getReturnValue());
+                console.log(component.get("v.conObj"));
+                //   component.set("v.conObj.LastName",a.getReturnValue().LastName);
+                console.log(component.get("v.conObj.LastName"));
+
+            });
+            $A.enqueueAction(action);
+
+        }
+    },
+    showdesc: function(component, event, helper) {
+        // component.set("v.truthy","true";)
+        if (component.get("v.truthy") == "true")
+            component.set("v.truthy", "false");
+        else
+            component.set("v.truthy", "true");
+    },
+    savedata: function(component, event, helper) {
+        debugger;
+        var name = component.get("v.conObj.LastName");
+        var email = component.get("v.conObj.Email");
+        var desc = component.get("v.conObj.Description");
+        var redirectid = '';
+
+        if (component.get("v.recordId") == '' || component.get("v.recordId") == null) {
+
+            var action = component.get("c.insertrecords");
+            action.setParams({
+                Name1: name,
+                Email: email
+            });
+
+        } else {
+
+            var action = component.get("c.updaterecords");
+            action.setParams({
+                recid: component.get("v.recordId"),
+                passedata: desc,
+                passdataemail: email,
+                passname: name
+            });
+
+        }
+
+        action.setCallback(this, function(a) {
+            console.log(a.getReturnValue());
+            if (component.get("v.recordId") == '' || component.get("v.recordId") == null) {
+                redirectid = a.getReturnValue();
+            } else {
+                redirectid = component.get("v.recordId");
+            }
+
+            var event = $A.get('e.force:navigateToSObject');
+            event.setParams({
+
+                "recordId": redirectid, //pass id1         
+                "slideDevName": "detail"
+
+            });
+            event.fire();
+        });
+        $A.enqueueAction(action);
+    },
+    close1: function(component) {
+
+        component.set("v.truthy", "false");
+
+    },
+    deleterec: function(component, event, helper) {
+        var action = component.get("c.deleterecord");
+        action.setParams({
+            recid: component.get("v.recordId"),
+            passeddata: desc
+        });
+    }
+})
+
+
+Aura Component Code:
+-------------------
+
+<aura:component Controller="Contactcreator" implements="lightning:actionOverride,force:lightningQuickAction,force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,lightning:actionOverride,force:hasRecordId" access="global">
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <aura:attribute name="conObj" type="Contact" default="{'sobjectType':'Contact'}" />
+    <aura:attribute name="truthy" type="Boolean" default="false" />
+    <fieldset class="slds-form-element slds-form-element_compound">
+        <legend class="slds-form-element__legend slds-form-element__label">Contact Details</legend>
+        <div class="slds-form-element__control">
+            <div class="slds-form-element__row">
+                <div class="slds-size_1-of-3">
+                    <div class="slds-form-element">
+                        <div class="slds-form-element__control">
+                            <ui:inputtext label="Name" value="{!v.conObj.LastName}" />
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-size_1-of-3">
+                    <div class="slds-form-element">
+                        <div class="slds-form-element__control">
+                            <ui:inputtext label="Email" value="{!v.conObj.Email}" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    <aura:if isTrue="{!v.truthy}">
+        <fieldset class="slds-form-element slds-form-element_compound">
+            <div class="slds-form-element__control">
+                <div class="slds-form-element__row">
+                    <div class="slds-size_1-of-3">
+                        <div class="slds-form-element">
+                            <div class="slds-form-element__control">
+                                <ui:inputtext label="Description" value="{!v.conObj.Description}" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </aura:if>
+    <lightning:button variant="brand" label="Save" onclick="{!c.savedata}" />
+    <lightning:button variant="brand" label="Delete" onclick="{!c.deleterec}" />
+    <button class="slds-button slds-button_brand">Cancel</button>
+    <lightning:button variant="brand" label="Toggle description Field" onclick="{!c.showdesc}" />
+</aura:component>
